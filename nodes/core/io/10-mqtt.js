@@ -209,7 +209,7 @@ module.exports = function(RED) {
                 node.client.on('connect', function () {
                     node.connecting = false;
                     node.connected = true;
-                    node.log(RED._("mqtt.state.connected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
+                    node.log(RED._("mqtt.state.connected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl + " as " + node.options.username}));
                     for (var id in node.users) {
                         if (node.users.hasOwnProperty(id)) {
                             node.users[id].status({fill:"green",shape:"dot",text:"node-red:common.status.connected"});
