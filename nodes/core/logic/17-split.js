@@ -39,8 +39,7 @@ module.exports = function(RED) {
         var node = this;
         node.stream = n.stream;
         node.spltType = n.spltType || "str";
-        node.addname = n.addname || false;
-        node.addfname = n.addfname;
+        node.addname = n.addname || "";
         try {
             if (node.spltType === "str") {
                 this.splt = (n.splt || "\\n").replace(/\\n/,"\n").replace(/\\r/,"\r").replace(/\\t/,"\t").replace(/\\e/,"\e").replace(/\\f/,"\f").replace(/\\0/,"\0");
@@ -67,7 +66,7 @@ module.exports = function(RED) {
             return;
         }
         node.c = 0;
-        node.buffer = new Buffer.from([]);
+        node.buffer = Buffer.from([]);
         this.on("input", function(msg) {
             if (msg.hasOwnProperty("payload")) {
                 if (msg.hasOwnProperty("parts")) { msg.parts = { parts:msg.parts }; } // push existing parts to a stack
@@ -78,6 +77,7 @@ module.exports = function(RED) {
                     msg.parts.type = "string";
                     if (node.spltType === "len") {
                         msg.parts.ch = "";
+                        msg.parts.len = node.splt;
                         var count = msg.payload.length/node.splt;
                         if (Math.floor(count) !== count) {
                             count = Math.ceil(count);
@@ -145,7 +145,9 @@ module.exports = function(RED) {
                     for (var p in pay) {
                         if (pay.hasOwnProperty(p)) {
                             msg.payload = pay[p];
-                            if (node.addname === true) { msg[node.addfname] = p; }
+                            if (node.addname !== "") {
+                                msg[node.addname] = p;
+                            }
                             msg.parts.key = p;
                             msg.parts.index = j;
                             msg.parts.count = l;
@@ -180,7 +182,7 @@ module.exports = function(RED) {
                             msg.payload = node.buffer;
                             msg.parts.index = node.c++;
                             node.send(RED.util.cloneMessage(msg));
-                            node.buffer = new Buffer.from([]);
+                            node.buffer = Buffer.from([]);
                         }
                     }
                     else {
@@ -241,7 +243,20 @@ module.exports = function(RED) {
         this.key = n.key||"topic";
         this.timer = (this.mode === "auto") ? 0 : Number(n.timeout || 0)*1000;
         this.count = Number(n.count || 0);
-        this.joiner = (n.joiner||"").replace(/\\n/g,"\n").replace(/\\r/g,"\r").replace(/\\t/g,"\t").replace(/\\e/g,"\e").replace(/\\f/g,"\f").replace(/\\0/g,"\0");
+        this.joiner = n.joiner||"";
+        this.joinerType = n.joinerType||"str";
+
+        if (this.joinerType === "str") {
+            this.joiner = this.joiner.replace(/\\n/g,"\n").replace(/\\r/g,"\r").replace(/\\t/g,"\t").replace(/\\e/g,"\e").replace(/\\f/g,"\f").replace(/\\0/g,"\0");
+        } else if (this.joinerType === "bin") {
+            var joinArray = JSON.parse(n.joiner)
+            if (Array.isArray(joinArray)) {
+                this.joiner = Buffer.from(joinArray);
+            } else {
+                throw new Error("not an array");
+            }
+        }
+
         this.build = n.build || "array";
         this.accumulate = n.accumulate || "false";
         //this.topic = n.topic;
@@ -279,7 +294,11 @@ module.exports = function(RED) {
             }
 
             if (group.type === 'string') {
-                RED.util.setMessageProperty(group.msg,node.property,group.payload.join(group.joinChar));
+                var groupJoinChar = group.joinChar;
+                if (typeof group.joinChar !== 'string') {
+                    groupJoinChar = group.joinChar.toString();
+                }
+                RED.util.setMessageProperty(group.msg,node.property,group.payload.join(groupJoinChar));
             } else {
                 RED.util.setMessageProperty(group.msg,node.property,group.payload);
             }
@@ -376,7 +395,7 @@ module.exports = function(RED) {
                             type:payloadType,
                             msg:msg
                         }
-                        if (payloadType === 'string') {
+                        if (payloadType === 'string' || payloadType === 'array' || payloadType === 'buffer') {
                             inflight[partId].payload = [];
                         }
                     }
@@ -394,6 +413,7 @@ module.exports = function(RED) {
                             inflight[partId].arrayLen = arrayLen;
                         } else if (payloadType === 'buffer') {
                             inflight[partId].bufferLen = 0;
+                            inflight[partId].joinChar = joinChar;
                         }
                     }
                     if (node.timer > 0) {
@@ -437,7 +457,7 @@ module.exports = function(RED) {
                 group.msg = msg;
                 var tcnt = group.targetCount;
                 if (msg.hasOwnProperty("parts")) { tcnt = group.targetCount || msg.parts.count; }
-                if (group.currentCount >= tcnt || msg.hasOwnProperty('complete')) {
+               if ((tcnt > 0 && group.currentCount >= tcnt) || msg.hasOwnProperty('complete')) {
                     completeSend(partId);
                 }
             } catch(err) {

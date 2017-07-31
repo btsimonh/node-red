@@ -1649,6 +1649,7 @@ RED.editor = (function() {
                 }
                 RED.sidebar.info.refresh(editing_node);
                 RED.workspaces.refresh();
+                subflowEditor.destroy();
                 editStack.pop();
                 editing_node = null;
             },
@@ -1863,7 +1864,8 @@ RED.editor = (function() {
                     var currentExpression = expressionEditor.getValue();
                     var expr;
                     var usesContext = false;
-                    var legacyMode = false;
+                    var legacyMode = /(^|[^a-zA-Z0-9_'"])msg([^a-zA-Z0-9_'"]|$)/.test(currentExpression);
+                    $(".node-input-expression-legacy").toggle(legacyMode);
                     try {
                         expr = jsonata(currentExpression);
                         expr.assign('flowContext',function(val) {
@@ -1874,12 +1876,10 @@ RED.editor = (function() {
                             usesContext = true;
                             return null;
                         });
-                        legacyMode = /(^|[^a-zA-Z0-9_'"])msg([^a-zA-Z0-9_'"]|$)/.test(currentExpression);
                     } catch(err) {
                         testResultEditor.setValue(RED._("expressionEditor.errors.invalid-expr",{message:err.message}),-1);
                         return;
                     }
-                    $(".node-input-expression-legacy").toggle(legacyMode);
                     try {
                         parsedData = JSON.parse(value);
                     } catch(err) {
@@ -1943,10 +1943,23 @@ RED.editor = (function() {
                     }
                 });
 
+                $("#node-input-example-reformat").click(function(evt) {
+                    evt.preventDefault();
+                    var v = testDataEditor.getValue()||"";
+                    try {
+                        v = JSON.stringify(JSON.parse(v),null,4);
+                    } catch(err) {
+                        // TODO: do an optimistic auto-format
+                    }
+                    testDataEditor.getSession().setValue(v||"",-1);
+                });
+
                 testExpression();
             },
             close: function() {
                 editStack.pop();
+                expressionEditor.destroy();
+                testDataEditor.destroy();
             },
             show: function() {}
         }
@@ -2007,7 +2020,7 @@ RED.editor = (function() {
                     mode:"ace/mode/json"
                 });
                 expressionEditor.getSession().setValue(value||"",-1);
-                $("#node-input-expression-reformat").click(function(evt) {
+                $("#node-input-json-reformat").click(function(evt) {
                     evt.preventDefault();
                     var v = expressionEditor.getValue()||"";
                     try {
@@ -2021,6 +2034,7 @@ RED.editor = (function() {
             },
             close: function() {
                 editStack.pop();
+                expressionEditor.destroy();
             },
             show: function() {}
         }
@@ -2206,6 +2220,8 @@ RED.editor = (function() {
             },
             close: function() {
                 editStack.pop();
+                bufferStringEditor.destroy();
+                bufferBinEditor.destroy();
             },
             show: function() {}
         }

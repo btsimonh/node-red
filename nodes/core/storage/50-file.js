@@ -32,7 +32,13 @@ module.exports = function(RED) {
 
         this.on("input",function(msg) {
             var filename = node.filename || msg.filename || "";
-            if (!node.filename) { node.status({fill:"grey",shape:"dot",text:filename}); }
+            if ((!node.filename) && (!node.tout)) {
+                node.tout = setTimeout(function() {
+                    node.status({fill:"grey",shape:"dot",text:filename});
+                    clearTimeout(node.tout);
+                    node.tout = null;
+                },333);
+            }
             if (filename === "") { node.warn(RED._("file.errors.nofilename")); }
             else if (node.overwriteFile === "delete") {
                 fs.unlink(filename, function (err) {
@@ -55,30 +61,71 @@ module.exports = function(RED) {
                 if (typeof data === "boolean") { data = data.toString(); }
                 if (typeof data === "number") { data = data.toString(); }
                 if ((this.appendNewline) && (!Buffer.isBuffer(data))) { data += os.EOL; }
-                node.data.push(new Buffer.from(data));
+                node.data.push(Buffer.from(data));
 
                 while (node.data.length > 0) {
                     if (this.overwriteFile === "true") {
-                        if (!node.wstream) {
-                            node.wstream = fs.createWriteStream(filename, { encoding:'binary', flags:'w' });
-                            node.wstream.on("error", function(err) {
-                                node.error(RED._("file.errors.writefail",{error:err.toString()}),msg);
-                            });
-                        }
+                        node.wstream = fs.createWriteStream(filename, { encoding:'binary', flags:'w', autoClose:true });
+                        node.wstream.on("error", function(err) {
+                            node.error(RED._("file.errors.writefail",{error:err.toString()}),msg);
+                        });
+                        node.wstream.end(node.data.shift());
                     }
                     else {
-                        if (!node.wstream) {
-                            node.wstream = fs.createWriteStream(filename, { encoding:'binary', flags:'a' });
+                        // Append mode
+                        var recreateStream = !node.wstream || !node.filename;
+                        if (node.wstream && node.wstreamIno) {
+                            // There is already a stream open and we have the inode
+                            // of the file. Check the file hasn't been deleted
+                            // or deleted and recreated.
+                            try {
+                                var stat = fs.statSync(filename);
+                                // File exists - check the inode matches
+                                if (stat.ino !== node.wstreamIno) {
+                                    // The file has been recreated. Close the current
+                                    // stream and recreate it
+                                    recreateStream = true;
+                                    node.wstream.end();
+                                    delete node.wstream;
+                                    delete node.wstreamIno;
+                                }
+                            } catch(err) {
+                                // File does not exist
+                                recreateStream = true;
+                                node.wstream.end();
+                                delete node.wstream;
+                                delete node.wstreamIno;
+                            }
+                        }
+                        if (recreateStream) {
+                            node.wstream = fs.createWriteStream(filename, { encoding:'binary', flags:'a', autoClose:true });
+                            node.wstream.on("open", function(fd) {
+                                try {
+                                    var stat = fs.statSync(filename);
+                                    node.wstreamIno = stat.ino;
+                                } catch(err) {
+                                }
+                            });
                             node.wstream.on("error", function(err) {
                                 node.error(RED._("file.errors.appendfail",{error:err.toString()}),msg);
                             });
                         }
+                        if (node.filename) {
+                            // Static filename - write and reuse the stream next time
+                            node.wstream.write(node.data.shift());
+                        } else {
+                            // Dynamic filename - write and close the stream
+                            node.wstream.end(node.data.shift());
+                            delete node.wstream;
+                            delete node.wstreamIno;
+                        }
                     }
-                    node.wstream.write(node.data.shift());
                 }
             }
         });
         this.on('close', function() {
+            if (node.wstream) { node.wstream.end(); }
+            if (node.tout) { clearTimeout(node.tout); }
             node.status({});
         });
     }
@@ -90,6 +137,11 @@ module.exports = function(RED) {
         this.filename = n.filename;
         this.format = n.format;
         this.chunk = false;
+        if (n.sendError === undefined) {
+            this.sendError = true;
+        } else {
+            this.sendError = n.sendError;
+        }
         if (this.format === "lines") { this.chunk = true; }
         if (this.format === "stream") { this.chunk = true; }
         var node = this;
@@ -104,7 +156,7 @@ module.exports = function(RED) {
             }
             else {
                 msg.filename = filename;
-                var lines = new Buffer.from([]);
+                var lines = Buffer.from([]);
                 var spare = "";
                 var count = 0;
                 var type = "buffer";
@@ -164,7 +216,13 @@ module.exports = function(RED) {
                         }
                     })
                     .on('error', function(err) {
-                        node.error('Error while reading file.', msg);
+                        node.error(err, msg);
+                        if (node.sendError) {
+                            var sendMessage = RED.util.cloneMessage(msg);
+                            delete sendMessage.payload;
+                            sendMessage.error = err;
+                            node.send(sendMessage);
+                        }
                     })
                     .on('end', function() {
                         if (node.chunk === false) {

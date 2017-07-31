@@ -361,6 +361,10 @@ RED.deploy = (function() {
             }
 
             deployInflight = true;
+            $("#header-shade").show();
+            $("#editor-shade").show();
+            $("#palette-shade").show();
+            $("#sidebar-shade").show();
             $.ajax({
                 url:"flows",
                 type: "POST",
@@ -384,6 +388,10 @@ RED.deploy = (function() {
                     if (node.changed) {
                         node.dirty = true;
                         node.changed = false;
+                    }
+                    if (node.moved) {
+                        node.dirty = true;
+                        node.moved = false;
                     }
                     if(node.credentials) {
                         delete node.credentials;
@@ -420,6 +428,10 @@ RED.deploy = (function() {
                 setTimeout(function() {
                     $(".deploy-button-content").css('opacity',1);
                     $(".deploy-button-spinner").hide();
+                    $("#header-shade").hide();
+                    $("#editor-shade").hide();
+                    $("#palette-shade").hide();
+                    $("#sidebar-shade").hide();
                 },delta);
             });
         }

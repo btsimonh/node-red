@@ -22,6 +22,7 @@ module.exports = function(RED) {
     var mustache = require("mustache");
     var querystring = require("querystring");
     var cookie = require("cookie");
+    var hashSum = require("hash-sum");
 
     function HTTPRequest(n) {
         RED.nodes.createNode(this,n);
@@ -83,17 +84,27 @@ module.exports = function(RED) {
             var ctSet = "Content-Type"; // set default camel case
             var clSet = "Content-Length";
             if (msg.headers) {
-                for (var v in msg.headers) {
-                    if (msg.headers.hasOwnProperty(v)) {
-                        var name = v.toLowerCase();
-                        if (name !== "content-type" && name !== "content-length") {
-                            // only normalise the known headers used later in this
-                            // function. Otherwise leave them alone.
-                            name = v;
+                if (msg.headers.hasOwnProperty('x-node-red-request-node')) {
+                    var headerHash = msg.headers['x-node-red-request-node'];
+                    delete msg.headers['x-node-red-request-node'];
+                    var hash = hashSum(msg.headers);
+                    if (hash === headerHash) {
+                        delete msg.headers;
+                    }
+                }
+                if (msg.headers) {
+                    for (var v in msg.headers) {
+                        if (msg.headers.hasOwnProperty(v)) {
+                            var name = v.toLowerCase();
+                            if (name !== "content-type" && name !== "content-length") {
+                                // only normalise the known headers used later in this
+                                // function. Otherwise leave them alone.
+                                name = v;
+                            }
+                            else if (name === 'content-type') { ctSet = v; }
+                            else { clSet = v; }
+                            opts.headers[name] = msg.headers[v];
                         }
-                        else if (name === 'content-type') { ctSet = v; }
-                        else { clSet = v; }
-                        opts.headers[name] = msg.headers[v];
                     }
                 }
             }
@@ -124,7 +135,7 @@ module.exports = function(RED) {
             }
             var payload = null;
 
-            if (msg.payload && (method == "POST" || method == "PUT" || method == "PATCH" ) ) {
+            if (typeof msg.payload !== "undefined" && (method == "POST" || method == "PUT" || method == "PATCH" ) ) {
                 if (typeof msg.payload === "string" || Buffer.isBuffer(msg.payload)) {
                     payload = msg.payload;
                 } else if (typeof msg.payload == "number") {
@@ -177,6 +188,9 @@ module.exports = function(RED) {
                     opts.headers = heads;
                     opts.method = method;
                     urltotest = match[0];
+                    if (opts.auth) {
+                        opts.headers['Proxy-Authorization'] = "Basic "+new Buffer(opts.auth).toString('Base64')
+                    }
                 }
                 else { node.warn("Bad proxy url: "+process.env.http_proxy); }
             }
@@ -207,7 +221,7 @@ module.exports = function(RED) {
                     })
 
                 }
-
+                msg.headers['x-node-red-request-node'] = hashSum(msg.headers);
                 // msg.url = url;   // revert when warning above finally removed
                 res.on('data',function(chunk) {
                     if (!Buffer.isBuffer(chunk)) {
@@ -230,19 +244,25 @@ module.exports = function(RED) {
                         }
                     }
 
-                    // Convert the payload to the required return type
-                    msg.payload = Buffer.concat(msg.payload); // bin
-                    if (node.ret !== "bin") {
-                        msg.payload = msg.payload.toString('utf8'); // txt
+                    // Check that msg.payload is an array - if the req error
+                    // handler has been called, it will have been set to a string
+                    // and the error already handled - so no further action should
+                    // be taken. #1344
+                    if (Array.isArray(msg.payload)) {
+                        // Convert the payload to the required return type
+                        msg.payload = Buffer.concat(msg.payload); // bin
+                        if (node.ret !== "bin") {
+                            msg.payload = msg.payload.toString('utf8'); // txt
 
-                        if (node.ret === "obj") {
-                            try { msg.payload = JSON.parse(msg.payload); } // obj
-                            catch(e) { node.warn(RED._("httpin.errors.json-error")); }
+                            if (node.ret === "obj") {
+                                try { msg.payload = JSON.parse(msg.payload); } // obj
+                                catch(e) { node.warn(RED._("httpin.errors.json-error")); }
+                            }
                         }
-                    }
 
-                    node.send(msg);
-                    node.status({});
+                        node.send(msg);
+                        node.status({});
+                    }
                 });
             });
             req.setTimeout(node.reqTimeout, function() {

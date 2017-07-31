@@ -67,8 +67,8 @@ function serveFilesFromTheme(themeValue, themeApp, directory) {
             array = [array];
         }
 
-        for (i=0;i<array.length;i++) {
-            url = serveFile(themeApp,directory,array[i]);
+        for (var i=0;i<array.length;i++) {
+            var url = serveFile(themeApp,directory,array[i]);
             if (url) {
                 result.push(url);
             }
@@ -98,11 +98,11 @@ module.exports = {
         if (theme.page) {
 
             themeContext.page.css = serveFilesFromTheme(
-                themeContext.page.css,
+                theme.page.css,
                 themeApp,
                 "/css/")
             themeContext.page.scripts = serveFilesFromTheme(
-                themeContext.page.scripts,
+                theme.page.scripts,
                 themeApp,
                 "/scripts/")
 

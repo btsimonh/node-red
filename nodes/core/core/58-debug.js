@@ -29,7 +29,7 @@ module.exports = function(RED) {
                     node.log("\n"+util.inspect(msg, {colors:useColors, depth:10}));
                 }
                 if (this.active) {
-                    sendDebug({id:this.id,name:this.name,topic:msg.topic,msg:msg,_path:msg._path});
+                    sendDebug({id:node.id,name:node.name,topic:msg.topic,msg:msg,_path:msg._path});
                 }
             } else {
             // debug user defined msg property
@@ -53,7 +53,7 @@ module.exports = function(RED) {
                     }
                 }
                 if (this.active) {
-                    sendDebug({id:this.id,z:this.z,name:this.name,topic:msg.topic,property:property,msg:output,_path:msg._path});
+                    sendDebug({id:node.id,z:node.z,name:node.name,topic:msg.topic,property:property,msg:output,_path:msg._path});
                 }
             }
         });
@@ -137,11 +137,17 @@ module.exports = function(RED) {
                             if (value.length > debuglength) {
                                 value = value.substring(0,debuglength)+"...";
                             }
-                        } else if (value !== null && typeof value === 'object' && value.type === "Buffer") {
-                            value.__encoded__ = true;
-                            value.length = value.data.length;
-                            if (value.length > debuglength) {
-                                value.data = value.data.slice(0,debuglength);
+                        } else if (value && value.constructor) {
+                            if (value.constructor.name === "Buffer") {
+                                value.__encoded__ = true;
+                                value.length = value.data.length;
+                                if (value.length > debuglength) {
+                                    value.data = value.data.slice(0,debuglength);
+                                }
+                            } else if (value.constructor.name === "ServerResponse") {
+                                value = "[internal]"
+                            } else if (value.constructor.name === "Socket") {
+                                value = "[internal]"
                             }
                         }
                         return value;

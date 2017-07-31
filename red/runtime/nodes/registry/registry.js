@@ -128,7 +128,7 @@ function saveNodeList() {
         }
     }
     if (hadPending && !hasPending) {
-        events.emit("runtime-event",{id:"restart-required"});
+        events.emit("runtime-event",{id:"restart-required",retain: true});
     }
     if (settings.available()) {
         return settings.set("nodes",moduleList);
@@ -598,6 +598,9 @@ function getNodeIconPath(module,icon) {
                     // iconPath doesn't exist
                 }
             }
+        }
+        if (module !== "node-red") {
+            return getNodeIconPath("node-red", icon);
         }
 
         return defaultIcon;
