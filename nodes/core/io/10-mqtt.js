@@ -186,13 +186,20 @@ module.exports = function(RED) {
                 node.options.password = pass;
                 if (node.client && node.client.connected){
                     node.client.end(function(){
+                        node.connecting = false;
+                        node.connected = false;
                         node.connect();
                     });
                 } else {
                     if (node.client){
-                        node.client.end();
-                        node.connect();
+                        node.client.end(function(){
+                            node.connecting = false;
+                            node.connected = false;
+                            node.connect();
+                        });
                     } else {
+                        node.connecting = false;
+                        node.connected = false;
                         node.connect();
                     }
                 }
