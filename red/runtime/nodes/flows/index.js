@@ -109,6 +109,15 @@ function setFlows(_config,type,muteLog) {
         config = clone(_config);
         newFlowConfig = flowUtil.parseConfig(clone(config));
         diff = flowUtil.diffConfigs(activeFlowConfig,newFlowConfig);
+
+        // dirty patch to fix adding flows
+		// remove credentials before this becomes activeFlowConfig
+		for (var id in newFlowConfig.allNodes) {
+			if (newFlowConfig.allNodes.hasOwnProperty(id)) {
+				delete newFlowConfig.allNodes[id].credentials;
+			}
+		}
+        
         credentials.clean(config);
         var credsDirty = credentials.dirty();
         configSavePromise = credentials.export().then(function(creds) {
