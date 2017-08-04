@@ -86,15 +86,27 @@ module.exports = function(RED) {
 
         // Create the URL to pass in to the MQTT.js library
         if (this.brokerurl === "") {
-            if (this.usetls) {
-                this.brokerurl="mqtts://";
+            // if the broken may be ws:// or wss:// or even tcp://
+            if (this.broker.indexOf("://") > -1) {
+                this.brokerurl = this.broker;
             } else {
-                this.brokerurl="mqtt://";
-            }
-            if (this.broker !== "") {
-                this.brokerurl = this.brokerurl+this.broker+":"+this.port;
-            } else {
-                this.brokerurl = this.brokerurl+"localhost:1883";
+                // construct the std mqtt:// url
+                if (this.usetls) {
+                    this.brokerurl="mqtts://";
+                } else {
+                    this.brokerurl="mqtt://";
+                }
+                if (this.broker !== "") {
+                    this.brokerurl = this.brokerurl+this.broker+":";
+                    // port now defaults to 1883 if unset.
+                    if (!this.port){
+                        this.brokerurl = this.brokerurl+"1883";
+                    } else {
+                        this.brokerurl = this.brokerurl+this.port;
+                    }
+                } else {
+                    this.brokerurl = this.brokerurl+"localhost:1883";
+                }
             }
         }
 
@@ -163,6 +175,38 @@ module.exports = function(RED) {
             done();
         };
 
+        
+        this.changecredentials = function(user, pass){
+            // allow for user or pass to be undefined
+            user = user || node.options.username;
+            pass = pass || node.options.password;
+            // do nothing if they will not change
+            if ((node.options.username !== user) || (node.options.password !== pass)){
+                node.options.username = user;
+                node.options.password = pass;
+                if (node.client && node.client.connected){
+                    node.client.end(function(){
+                        node.connecting = false;
+                        node.connected = false;
+                        node.connect();
+                    });
+                } else {
+                    if (node.client){
+                        node.client.end(function(){
+                            node.connecting = false;
+                            node.connected = false;
+                            node.connect();
+                        });
+                    } else {
+                        node.connecting = false;
+                        node.connected = false;
+                        node.connect();
+                    }
+                }
+            }
+        };
+        
+
         this.connect = function () {
             if (!node.connected && !node.connecting) {
                 node.connecting = true;
@@ -172,7 +216,7 @@ module.exports = function(RED) {
                 node.client.on('connect', function () {
                     node.connecting = false;
                     node.connected = true;
-                    node.log(RED._("mqtt.state.connected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
+                    node.log(RED._("mqtt.state.connected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl + " as " + node.options.username}));
                     for (var id in node.users) {
                         if (node.users.hasOwnProperty(id)) {
                             node.users[id].status({fill:"green",shape:"dot",text:"node-red:common.status.connected"});
@@ -371,6 +415,12 @@ module.exports = function(RED) {
         if (this.brokerConn) {
             this.status({fill:"red",shape:"ring",text:"node-red:common.status.disconnected"});
             this.on("input",function(msg) {
+                // if msg contains 'username' or 'password, change credentials and leave
+                if (msg.username !== undefined || msg.password !== undefined){
+                    this.brokerConn.changecredentials(msg.username, msg.password);
+                    return;
+                }
+                
                 if (msg.qos) {
                     msg.qos = parseInt(msg.qos);
                     if ((msg.qos !== 0) && (msg.qos !== 1) && (msg.qos !== 2)) {
