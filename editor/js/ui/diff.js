@@ -11,12 +11,6 @@ RED.diff = (function() {
         // RED.keyboard.add("*","ctrl-shift-l","core:show-current-diff");
         RED.keyboard.add("*","ctrl-shift-r","core:show-remote-diff");
 
-
-        // RED.actions.add("core:show-current-diff",showLocalDiff);
-        RED.actions.add("core:show-test-flow-diff",showTestFlowDiff);
-        // RED.keyboard.add("*","ctrl-shift-l","core:show-current-diff");
-        RED.keyboard.add("*","ctrl-shift-f","core:show-test-flow-diff");
-
     }
 
     function buildDiffPanel(container) {
@@ -57,7 +51,7 @@ RED.diff = (function() {
                 } else if (tab.type === 'subflow') {
                     titleSpan.html((tabForLabel.name||tabForLabel.id));
                 } else {
-                    titleSpan.html("Global nodes");
+                    titleSpan.html(RED._("diff.globalNodes"));
                 }
                 var flowStats = {
                     local: {
@@ -133,7 +127,7 @@ RED.diff = (function() {
                             }
                         }
                         $('<span class="node-diff-chevron"><i class="fa fa-angle-down"></i></span>').appendTo(originalNodeDiv);
-                        $('<span>').html("Flow Properties").appendTo(originalNodeDiv);
+                        $('<span>').html(RED._("diff.flowProperties")).appendTo(originalNodeDiv);
 
                         row.click(function(evt) {
                             evt.preventDefault();
