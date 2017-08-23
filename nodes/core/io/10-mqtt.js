@@ -180,24 +180,34 @@ module.exports = function(RED) {
             // allow for user or pass to be undefined
             user = user || node.options.username;
             pass = pass || node.options.password;
+            
+            console.log("Br: u:" + user + " p:"+pass);
+
             // do nothing if they will not change
             if ((node.options.username !== user) || (node.options.password !== pass)){
+                console.log("setting");
                 node.options.username = user;
                 node.options.password = pass;
                 if (node.client && node.client.connected){
+                    console.log("ending");
                     node.client.end(function(){
                         node.connecting = false;
                         node.connected = false;
+                        console.log("ended");
                         node.connect();
                     });
                 } else {
                     if (node.client){
+                        console.log("ending (not connected)");
                         node.client.end(function(){
                             node.connecting = false;
                             node.connected = false;
+                            console.log("ended");
                             node.connect();
                         });
+                        node.connect();
                     } else {
+                        console.log("client = null");
                         node.connecting = false;
                         node.connected = false;
                         node.connect();
@@ -212,8 +222,10 @@ module.exports = function(RED) {
                 node.connecting = true;
                 node.client = mqtt.connect(node.brokerurl ,node.options);
                 node.client.setMaxListeners(0);
+                console.log("connect()");
                 // Register successful connect or reconnect handler
                 node.client.on('connect', function () {
+                    console.log("onconnect()");
                     node.connecting = false;
                     node.connected = true;
                     node.log(RED._("mqtt.state.connected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl + " as " + node.options.username}));
@@ -255,6 +267,7 @@ module.exports = function(RED) {
                 })
                 // Register disconnect handlers
                 node.client.on('close', function () {
+                    console.log("onclose()");
                     if (node.connected) {
                         node.connected = false;
                         node.log(RED._("mqtt.state.disconnected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
@@ -270,6 +283,7 @@ module.exports = function(RED) {
 
                 // Register connect error handler
                 node.client.on('error', function (error) {
+                    console.log("onerror()");
                     if (node.connecting) {
                         node.client.end();
                         node.connecting = false;
@@ -417,6 +431,7 @@ module.exports = function(RED) {
             this.on("input",function(msg) {
                 // if msg contains 'username' or 'password, change credentials and leave
                 if (msg.username !== undefined || msg.password !== undefined){
+                    console.log("u:" + msg.username + " p:"+msg.password);
                     this.brokerConn.changecredentials(msg.username, msg.password);
                     return;
                 }
