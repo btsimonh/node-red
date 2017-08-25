@@ -181,33 +181,33 @@ module.exports = function(RED) {
             user = user || node.options.username;
             pass = pass || node.options.password;
             
-            console.log("Br: u:" + user + " p:"+pass);
+            //console.log("Br: u:" + user + " p:"+pass);
 
             // do nothing if they will not change
             if ((node.options.username !== user) || (node.options.password !== pass)){
-                console.log("setting");
+                //console.log("setting");
                 node.options.username = user;
                 node.options.password = pass;
                 if (node.client && node.client.connected){
-                    console.log("ending");
+                    //console.log("ending");
                     node.client.end(function(){
                         node.connecting = false;
                         node.connected = false;
-                        console.log("ended");
+                        console.log("change cred (was connected)");
                         node.connect();
                     });
                 } else {
                     if (node.client){
-                        console.log("ending (not connected)");
-                        node.client.end(function(){
-                            node.connecting = false;
-                            node.connected = false;
-                            console.log("ended");
-                            node.connect();
-                        });
+                        console.log("change cred (not connected)");
+                        //node.client.end(function(){
+                        node.connecting = false;
+                        node.connected = false;
+                        //console.log("ended");
                         node.connect();
+                        //});
+                        //node.connect();
                     } else {
-                        console.log("client = null");
+                        console.log("change credentials (client = null)");
                         node.connecting = false;
                         node.connected = false;
                         node.connect();
