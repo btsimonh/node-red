@@ -224,7 +224,7 @@ module.exports = function(RED) {
                 node.client.setMaxListeners(0);
                 console.log("connect()");
                 // Register successful connect or reconnect handler
-                node.client.on('connect', function () {
+                node.onconnect = function () {
                     console.log("onconnect()");
                     node.connecting = false;
                     node.connected = true;
@@ -257,16 +257,18 @@ module.exports = function(RED) {
                     if (node.birthMessage) {
                         node.publish(node.birthMessage);
                     }
-                });
-                node.client.on("reconnect", function() {
+                };
+                node.client.on('connect', node.onconnect);
+                node.onreconnect = function() {
                     for (var id in node.users) {
                         if (node.users.hasOwnProperty(id)) {
                             node.users[id].status({fill:"yellow",shape:"ring",text:"node-red:common.status.connecting"});
                         }
                     }
-                })
+                };
+                node.client.on("reconnect", node.onreconnect);
                 // Register disconnect handlers
-                node.client.on('close', function () {
+                node.onclose = function () {
                     console.log("onclose()");
                     if (node.connected) {
                         node.connected = false;
@@ -279,16 +281,18 @@ module.exports = function(RED) {
                     } else if (node.connecting) {
                         node.log(RED._("mqtt.state.connect-failed",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
                     }
-                });
+                };
+                node.client.on('close', node.onclose);
 
                 // Register connect error handler
-                node.client.on('error', function (error) {
+                node.onerror = function (error) {
                     console.log("onerror()");
                     if (node.connecting) {
                         node.client.end();
                         node.connecting = false;
                     }
-                });
+                };
+                node.client.on('error', node.onerror);
             }
         };
 
