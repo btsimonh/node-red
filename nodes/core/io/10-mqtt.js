@@ -188,31 +188,43 @@ module.exports = function(RED) {
                 //console.log("setting");
                 node.options.username = user;
                 node.options.password = pass;
-                if (node.client && node.client.connected){
-                    //console.log("ending");
-                    node.client.end(function(){
-                        node.connecting = false;
-                        node.connected = false;
-                        console.log("change cred (was connected)");
-                        node.connect();
+                if (node.client){
+                    var oldclient = node.client;
+                    node.client = null;
+                    oldclient.removeListener('close', node.onclose);
+                    oldclient.removeListener('error', node.onerror);
+                    oldclient.removeListener('connect', node.onconnect);
+                    oldclient.removeListener('reconnect', node.onreconnect);
+                    // leave message listener(s) attached
+                    oldclient.on('close', function () {
+                        console.log("oldclient onclose()");
+                        if (node.connected) {
+                            node.connected = false;
+                            node.log(RED._("mqtt.state.disconnected",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
+                            for (var id in node.users) {
+                                if (node.users.hasOwnProperty(id)) {
+                                    node.users[id].status({fill:"red",shape:"ring",text:"node-red:common.status.disconnected"});
+                                }
+                            }
+                        } else if (node.connecting) {
+                            node.log(RED._("mqtt.state.connect-failed",{broker:(node.clientid?node.clientid+"@":"")+node.brokerurl}));
+                        }
                     });
-                } else {
-                    if (node.client){
-                        console.log("change cred (not connected)");
-                        //node.client.end(function(){
-                        node.connecting = false;
-                        node.connected = false;
-                        //console.log("ended");
-                        node.connect();
-                        //});
-                        //node.connect();
-                    } else {
-                        console.log("change credentials (client = null)");
-                        node.connecting = false;
-                        node.connected = false;
-                        node.connect();
-                    }
+                    // Register connect error handler
+                    oldclient.on('error', function (error) {
+                        console.log("old client onerror");
+                    });
+                    
+                    oldclient.end(function(){
+                        console.log("old client end complete");
+                    });
+                    
+                    console.log("change cred - removed old client");
+                    node.connected = false;
+                    node.connecting = false;
                 }
+                console.log("change cred - connect");
+                node.connect();
             }
         };
         
