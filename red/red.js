@@ -69,9 +69,11 @@ module.exports = {
             runtime.init(userSettings,api);
             api.init(httpServer,runtime);
             apiEnabled = true;
+            runtime.server = runtime.adminApi.server;
         } else {
             runtime.init(userSettings);
             apiEnabled = false;
+            runtime.server = httpServer;
         }
         adminApp = runtime.adminApi.adminApp;
         nodeApp = runtime.nodeApp;
