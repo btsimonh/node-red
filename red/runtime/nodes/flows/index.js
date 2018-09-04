@@ -454,7 +454,8 @@ function addFlow(flow) {
     var nodes = [{
         type:'tab',
         label:flow.label,
-        id:flow.id
+        id:flow.id,
+        disabled:flow.disabled
     }];
 
     for (i=0;i<flow.nodes.length;i++) {
@@ -507,6 +508,9 @@ function getFlow(id) {
     };
     if (flow.label) {
         result.label = flow.label;
+    }
+    if (flow.disabled) {
+        result.disabled = flow.disabled;
     }
     if (id !== 'global') {
         result.nodes = [];
