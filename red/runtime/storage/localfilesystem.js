@@ -206,7 +206,8 @@ var localfilesystem = {
         if (settings.flowFile) {
             flowsFile = settings.flowFile;
             // handle Unix and Windows "C:\"
-            if ((flowsFile[0] == "/") || (flowsFile[1] == ":")) {
+            if (((flowsFile[0] == "\\") && (flowsFile[0] == "\\")) || (flowsFile[0] == "/") || (flowsFile[1] == ":")) {
+            //if ((flowsFile[0] == "/") || (flowsFile[1] == ":")) {
                 // Absolute path
                 flowsFullPath = flowsFile;
             } else if (flowsFile.substring(0,2) === "./") {
