@@ -86,6 +86,12 @@ module.exports = function(RED) {
             this.cleansession = true;
         }
 
+        var prox, noprox;
+        if (process.env.http_proxy != null) { prox = process.env.http_proxy; }
+        if (process.env.HTTP_PROXY != null) { prox = process.env.HTTP_PROXY; }
+        if (process.env.no_proxy != null) { noprox = process.env.no_proxy.split(","); }
+        if (process.env.NO_PROXY != null) { noprox = process.env.NO_PROXY.split(","); }
+        
         // Create the URL to pass in to the MQTT.js library
         if (this.brokerurl === "") {
             // if the broken may be ws:// or wss:// or even tcp://
@@ -93,8 +99,14 @@ module.exports = function(RED) {
                 this.brokerurl = this.broker;
                 // Only for ws or wss, check if proxy env var for additional configuration
                 if (this.brokerurl.indexOf("wss://") > -1 || this.brokerurl.indexOf("ws://") > -1 ) {
-                // check if proxy is set in env
-                    if (prox) {
+                    // check if proxy is set in env
+                    var noproxy;
+                    if (noprox) {
+                        for (var i in noprox) {
+                            if (this.brokerurl.indexOf(noprox[i].trim()) !== -1) { noproxy=true; }
+                        }
+                    }
+                    if (prox && !noproxy) {
                         var parsedUrl = url.parse(this.brokerurl);
                         var proxyOpts = url.parse(prox);
                         // true for wss
