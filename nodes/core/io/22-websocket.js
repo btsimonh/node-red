@@ -18,6 +18,7 @@ module.exports = function(RED) {
     "use strict";
     var ws = require("ws");
     var inspect = require("util").inspect;
+    var HttpsProxyAgent = require('https-proxy-agent');
 
     // A node red node that sets up a local websocket server
     function WebSocketListenerNode(n) {
@@ -37,7 +38,29 @@ module.exports = function(RED) {
 
         function startconn() {    // Connect to remote endpoint
             node.tout = null;
-            var socket = new ws(node.path);
+            var prox, noprox;
+            if (process.env.http_proxy != null) { prox = process.env.http_proxy; }
+            if (process.env.HTTP_PROXY != null) { prox = process.env.HTTP_PROXY; }
+            if (process.env.no_proxy != null) { noprox = process.env.no_proxy.split(","); }
+            if (process.env.NO_PROXY != null) { noprox = process.env.NO_PROXY.split(","); }
+            
+            var noproxy = false;
+            if (noprox) {
+                for (var i in noprox) {
+                    if (node.path.indexOf(noprox[i].trim()) !== -1) { noproxy=true; }
+                }
+            }
+            
+            var agent = undefined;
+            if (prox && !noproxy) {
+              agent = new HttpsProxyAgent(prox);
+            }
+
+            var wsopts = {};
+            if (agent) {
+              wsopts.agent = agent;
+            }
+            var socket = new ws(node.path, wsopts);
             socket.setMaxListeners(0);
             node.server = socket; // keep for closing
             handleConnection(socket);

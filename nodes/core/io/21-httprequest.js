@@ -23,6 +23,8 @@ module.exports = function(RED) {
     var querystring = require("querystring");
     var cookie = require("cookie");
     var hashSum = require("hash-sum");
+    var HttpsProxyAgent = require('https-proxy-agent');
+    
 
     function HTTPRequest(n) {
         RED.nodes.createNode(this,n);
@@ -174,25 +176,14 @@ module.exports = function(RED) {
                     if (url.indexOf(noprox[i]) !== -1) { noproxy=true; }
                 }
             }
+            var agent = undefined;
             if (prox && !noproxy) {
-                var match = prox.match(/^(http:\/\/)?(.+)?:([0-9]+)?/i);
-                if (match) {
-                    //opts.protocol = "http:";
-                    //opts.host = opts.hostname = match[2];
-                    //opts.port = (match[3] != null ? match[3] : 80);
-                    opts.headers['Host'] = opts.host;
-                    var heads = opts.headers;
-                    var path = opts.pathname = opts.href;
-                    opts = urllib.parse(prox);
-                    opts.path = opts.pathname = path;
-                    opts.headers = heads;
-                    opts.method = method;
-                    urltotest = match[0];
-                    if (opts.auth) {
-                        opts.headers['Proxy-Authorization'] = "Basic "+new Buffer(opts.auth).toString('Base64')
-                    }
+                agent = new HttpsProxyAgent(prox);
+                if (!agent) { 
+                  node.warn("Bad proxy url: "+process.env.http_proxy); 
+                } else {
+                  opts.agent = agent;
                 }
-                else { node.warn("Bad proxy url: "+process.env.http_proxy); }
             }
             if (tlsNode) {
                 tlsNode.addTLSOptions(opts);
