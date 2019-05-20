@@ -39,13 +39,15 @@ module.exports = function(RED) {
         if (RED.settings.httpRequestTimeout) { this.reqTimeout = parseInt(RED.settings.httpRequestTimeout) || 120000; }
         else { this.reqTimeout = 120000; }
 
-        var prox, noprox;
-        if (process.env.http_proxy != null) { prox = process.env.http_proxy; }
-        if (process.env.HTTP_PROXY != null) { prox = process.env.HTTP_PROXY; }
-        if (process.env.no_proxy != null) { noprox = process.env.no_proxy.split(","); }
-        if (process.env.NO_PROXY != null) { noprox = process.env.NO_PROXY.split(","); }
 
         this.on("input",function(msg) {
+            // re-read proxy details every message - they could change.
+            var prox, noprox;
+            if (process.env.http_proxy) { prox = process.env.http_proxy; }
+            if (process.env.HTTP_PROXY) { prox = process.env.HTTP_PROXY; }
+            if (process.env.no_proxy) { noprox = process.env.no_proxy.split(","); }
+            if (process.env.NO_PROXY) { noprox = process.env.NO_PROXY.split(","); }
+          
             var preRequestTimestamp = process.hrtime();
             node.status({fill:"blue",shape:"dot",text:"httpin.status.requesting"});
             var url = nodeUrl || msg.url;
@@ -170,6 +172,11 @@ module.exports = function(RED) {
                 delete opts.headers['content-length'];
             }
             var urltotest = url;
+            
+            var isHttps = (/^https/.test(urltotest));
+            // set defaultport, else when using HttpsProxyAgent, it's defaultPort of 443 will be used :(.
+            opts.defaultPort = isHttps?443:80;
+            
             var noproxy;
             if (noprox) {
                 for (var i in noprox) {
@@ -188,7 +195,7 @@ module.exports = function(RED) {
             if (tlsNode) {
                 tlsNode.addTLSOptions(opts);
             }
-            var req = ((/^https/.test(urltotest))?https:http).request(opts,function(res) {
+            var req = (isHttps?https:http).request(opts,function(res) {
                 // Force NodeJs to return a Buffer (instead of a string)
                 // See https://github.com/nodejs/node/issues/6038
                 res.setEncoding(null);

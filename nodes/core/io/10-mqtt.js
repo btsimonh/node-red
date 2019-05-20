@@ -87,10 +87,10 @@ module.exports = function(RED) {
         }
 
         var prox, noprox;
-        if (process.env.http_proxy != null) { prox = process.env.http_proxy; }
-        if (process.env.HTTP_PROXY != null) { prox = process.env.HTTP_PROXY; }
-        if (process.env.no_proxy != null) { noprox = process.env.no_proxy.split(","); }
-        if (process.env.NO_PROXY != null) { noprox = process.env.NO_PROXY.split(","); }
+        if (process.env.http_proxy) { prox = process.env.http_proxy; }
+        if (process.env.HTTP_PROXY) { prox = process.env.HTTP_PROXY; }
+        if (process.env.no_proxy) { noprox = process.env.no_proxy.split(","); }
+        if (process.env.NO_PROXY) { noprox = process.env.NO_PROXY.split(","); }
         
         // Create the URL to pass in to the MQTT.js library
         if (this.brokerurl === "") {
