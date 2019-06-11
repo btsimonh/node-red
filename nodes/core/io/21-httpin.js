@@ -21,8 +21,10 @@ module.exports = function(RED) {
     var cookieParser = require("cookie-parser");
     var getBody = require('raw-body');
     var cors = require('cors');
-    var jsonParser = bodyParser.json();
-    var urlencParser = bodyParser.urlencoded({extended:true});
+
+    var maxApiRequestSize = settings.httpInMaxLength || '5mb';
+    var jsonParser = bodyParser.json({limit:maxApiRequestSize});
+    var urlencParser = bodyParser.urlencoded({limit:maxApiRequestSize,extended:true});
     var onHeaders = require('on-headers');
     var typer = require('media-typer');
     var isUtf8 = require('is-utf8');
